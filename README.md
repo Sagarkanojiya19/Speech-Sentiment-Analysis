@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # 🎤 Speech Sentiment Analysis
 
 A comprehensive sentiment analysis application that processes both text and speech input using deep learning and natural language processing techniques.
