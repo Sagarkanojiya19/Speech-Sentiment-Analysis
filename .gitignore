@@ -24,6 +24,7 @@ MANIFEST
 
 # Virtual Environment
 speech_sentiment_env/
+.venv/
 venv/
 env/
 ENV/
@@ -33,7 +34,7 @@ venv.bak/
 # Jupyter Notebook
 .ipynb_checkpoints
 
-# Models and Data Files
+# Large Models and Data Files
 *.h5
 *.hdf5
 *.pkl
@@ -65,3 +66,6 @@ desktop.ini
 # Temporary files
 tmp/
 temp/
+
+# Git
+.git
