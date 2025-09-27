@@ -1,10 +1,7 @@
 # Core data science packages
- # Compatible with numpy 1.24.3
 pandas  # Compatible with the above packages
 
 # Web frameworks
-# flask==2.2.5  # LTS version with good compatibility
-# flask-cors==3.0.10  # Stable version
 streamlit  # Compatible with Python 3.11
 
 # Machine Learning
@@ -34,7 +31,7 @@ plotly
 tqdm
 
 # Optional dependencies (commented out to avoid installation issues)
-# PyAudio>=0.2.11  # Uncomment if needed for direct microphone access
+ # Uncomment if needed for direct microphone access
 streamlit
 streamlit-webrtc
 librosa
