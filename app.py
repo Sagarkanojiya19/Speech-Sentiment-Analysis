@@ -75,10 +75,6 @@ def load_glove_embeddings(filepath: str):
     """Load GloVe embeddings (100d) into a dictionary."""
     embeddings_index = {}
     if not os.path.exists(filepath):
-        st.warning(
-            "GloVe file 'glove.6B.100d.txt' not found. You can still use the app, "
-            "but predictions may be less accurate until you upload the embeddings below."
-        )
         return embeddings_index
     with open(filepath, encoding='utf-8') as f:
         for line in f:
