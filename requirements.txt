@@ -43,3 +43,4 @@ scipy
 tensorflow
 speechrecognition
 pickle-mixin
+streamlit-audiorec

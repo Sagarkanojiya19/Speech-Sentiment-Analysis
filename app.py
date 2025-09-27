@@ -1,16 +1,17 @@
 import streamlit as st
 import numpy as np
-import sounddevice as sd
+import sounddevice as sd  # retained import; not used after switching to browser recorder
 import tempfile
 import os
 import tensorflow as tf
 import speech_recognition as sr
-from scipy.io.wavfile import write as wav_write
+from scipy.io.wavfile import write as wav_write, read as wav_read
 import re
 from sklearn.preprocessing import LabelEncoder
 import pandas as pd
 import plotly.express as px
 import html
+from st_audiorec import st_audiorec
 
 # ======================
 # Load Model + Resources
@@ -99,17 +100,47 @@ MAX_LEN = 100
 # ======================
 # Helper Functions
 # ======================
-def record_audio(duration=5, fs=16000):
-    """Record mono audio and save as PCM 16-bit WAV compatible with SpeechRecognition."""
-    # Record directly as int16 for PCM WAV compatibility
-    recording = sd.rec(int(duration * fs), samplerate=fs, channels=1, dtype='int16')
-    sd.wait()
-
-    # Create a temp file path and ensure no handle conflicts on Windows
+def record_audio():
+    """Record audio from the user's browser using st_audiorec and return a temp WAV file path.
+    Returns None until the user finishes recording.
+    """
+    st.markdown("<p class='centered muted'>🎙 Press the mic to start, then press again to stop. The app continues automatically.</p>", unsafe_allow_html=True)
+    wav_bytes = st_audiorec()
+    if wav_bytes is None:
+        return None
+    # Write bytes to a temp WAV file and return its path
     fd, file_path = tempfile.mkstemp(suffix=".wav")
     os.close(fd)
-    wav_write(file_path, fs, recording.squeeze())  # int16 array -> PCM WAV
-    return file_path
+    with open(file_path, "wb") as f:
+        f.write(wav_bytes)
+    # Trim to a maximum of 10 seconds
+    trimmed_path = _trim_wav_to_seconds(file_path, max_seconds=10)
+    if trimmed_path != file_path:
+        try:
+            os.remove(file_path)
+        except Exception:
+            pass
+    return trimmed_path
+
+def _trim_wav_to_seconds(path: str, max_seconds: int = 10) -> str:
+    """Trim the given WAV file to max_seconds and return path to trimmed file (may be original).
+    Uses scipy.io.wavfile for simple, dependency-light trimming.
+    """
+    try:
+        sr, data = wav_read(path)
+        # Handle mono/stereo uniformly
+        total_samples = data.shape[0]
+        max_samples = int(max_seconds * sr)
+        if total_samples > max_samples:
+            data = data[:max_samples]
+            fd2, out_path = tempfile.mkstemp(suffix=".wav")
+            os.close(fd2)
+            wav_write(out_path, sr, data)
+            return out_path
+        return path
+    except Exception as e:
+        st.warning(f"Could not trim audio (using full length): {e}")
+        return path
 
 def transcribe_audio(file_path):
     r = sr.Recognizer()
@@ -166,6 +197,10 @@ def predict_sentiment(text: str):
 # Streamlit UI
 # ======================
 st.set_page_config(page_title="🎤 Speech Sentiment App", page_icon="🎤", layout="wide")
+
+# Keep recorder visible across reruns until audio is captured
+if 'use_browser_rec' not in st.session_state:
+    st.session_state['use_browser_rec'] = False
 
 # Modern dark theme styling
 st.markdown(
@@ -301,11 +336,18 @@ with center:
     st.markdown("<p class='centered muted'>Click to start recording…</p>", unsafe_allow_html=True)
 st.markdown("</div>", unsafe_allow_html=True)
 
+# Clicking the mic enters recording mode
 if mic_clicked:
-    st.markdown("<p class='centered muted'>🎙 Recording for 5 seconds...</p>", unsafe_allow_html=True)
-    with st.spinner("Recording 5 seconds..."):
-        file_path = record_audio()
+    st.session_state['use_browser_rec'] = True
 
+# When in recording mode, render the browser recorder and wait for audio
+file_path = None
+if st.session_state['use_browser_rec']:
+    file_path = record_audio()
+    if file_path:
+        st.session_state['use_browser_rec'] = False
+
+if file_path:
     # Listen card (centered)
     st.markdown("<div class='card'>", unsafe_allow_html=True)
     st.markdown("<h4 class='centered'>▶️ Listen to your recording</h4>", unsafe_allow_html=True)
