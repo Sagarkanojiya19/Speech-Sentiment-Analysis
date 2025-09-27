@@ -246,7 +246,7 @@ st.markdown(
     .analysis-subtitle { color:#bdbdbd; font-size: 1rem; margin: 0 0 .8rem; }
 
     .mic-area { width:100%; display:flex; justify-content:center; align-items:center; padding:.4rem 0 .1rem; margin: 0 auto; position: relative; min-height: 120px; }
-    .mic-wrap { max-width: 980px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; }
+    .mic-wrap { max-width: 980px; margin: 0 auto; display: grid; place-items: center; }
     .mic-area .stButton>button {
         width: clamp(72px, 8vw, 96px) !important; height: clamp(72px, 8vw, 96px) !important;
         min-width: unset !important; 
@@ -314,9 +314,8 @@ st.markdown(
     .centered { text-align: center; }
     /* Ensure Streamlit buttons are horizontally centered */
     div.stButton { display: flex; justify-content: center; }
-    /* Center button specifically when inside mic-wrap */
-    .mic-wrap div.stButton { width: 100%; justify-content: center; }
-    .mic-wrap .stButton>button { margin: 0 auto; width: clamp(80px, 9vw, 110px) !important; height: clamp(80px, 9vw, 110px) !important; }
+    /* Grid centering ensures exact horizontal alignment */
+    .mic-wrap .stButton>button { width: clamp(80px, 9vw, 110px) !important; height: clamp(80px, 9vw, 110px) !important; }
     </style>
     """,
     unsafe_allow_html=True
