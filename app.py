@@ -246,6 +246,7 @@ st.markdown(
     .analysis-subtitle { color:#bdbdbd; font-size: 1rem; margin: 0 0 .8rem; }
 
     .mic-area { width:100%; display:flex; justify-content:center; align-items:center; padding:.4rem 0 .1rem; margin: 0 auto; position: relative; min-height: 120px; }
+    .mic-wrap { max-width: 980px; margin: 0 auto; display: grid; place-items: center; }
     .mic-area .stButton>button {
         width: clamp(72px, 8vw, 96px) !important; height: clamp(72px, 8vw, 96px) !important;
         min-width: unset !important; 
@@ -355,10 +356,12 @@ st.markdown(
     unsafe_allow_html=True
 )
 
+st.markdown("<div class='mic-wrap'>", unsafe_allow_html=True)
 col_l, col_c, col_r = st.columns([1,1,1])
 with col_c:
     mic_clicked = st.button("🎤", key="mic_record")
     st.markdown("<p class='centered muted'>Click to start recording…</p>", unsafe_allow_html=True)
+st.markdown("</div>", unsafe_allow_html=True)
 
 # Clicking the mic enters recording mode
 if mic_clicked:
