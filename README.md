@@ -1,9 +1,9 @@
-<<<<<<< HEAD
+
 # Speech Sentiment Analysis App
 =======
 
 # 🎤 Speech Sentiment Analysis
->>>>>>> 0d6ee6dc6f533cb44ce1ea23355fc7c1966322ce
+
 
 A modern React/Next.js frontend with Python TensorFlow backend for real-time speech sentiment analysis.
 
