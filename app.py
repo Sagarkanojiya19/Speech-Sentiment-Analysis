@@ -1,10 +1,10 @@
 import streamlit as st
 import numpy as np
-import sounddevice as sd  # retained import; not used after switching to browser recorder
+# import sounddevice as sd  # retained import; not used after switching to browser recorder
 import tempfile
 import os
 import tensorflow as tf
-import speech_recognition as sr
+# import speech_recognition as sr
 from scipy.io.wavfile import write as wav_write, read as wav_read
 import re
 from sklearn.preprocessing import LabelEncoder

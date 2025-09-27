@@ -16,8 +16,7 @@ keras  # Separate Keras installation for Python 3.11
 nltk
 
 # Audio processing
-sounddevice
-SpeechRecognition
+# SpeechRecognition
 
 # Visualization
 matplotlib
