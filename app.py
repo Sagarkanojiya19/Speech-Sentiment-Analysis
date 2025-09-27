@@ -1,301 +1,399 @@
-import gradio as gr
+import streamlit as st
 import numpy as np
-import tensorflow as tf
-from sklearn.preprocessing import LabelEncoder
 import sounddevice as sd
-import speech_recognition as sr
-from scipy.io.wavfile import write
-import re
-import os
 import tempfile
-import time
+import os
+import tensorflow as tf
+import speech_recognition as sr
+from scipy.io.wavfile import write as wav_write
+import re
+from sklearn.preprocessing import LabelEncoder
+import pandas as pd
+import plotly.express as px
+import html
 
-# Global variables for model and embeddings
-model = None
-label_encoder = None
-embeddings_index = None
+# ======================
+# Load Model + Resources
+# ======================
 
-def load_glove_embeddings(filepath):
-    """Load GloVe embeddings from file"""
+def load_model_robust():
+    """Load Keras model handling legacy InputLayer(batch_shape) and provide fallbacks.
+    Order:
+    1) Try direct load of Model.h5 with custom_objects
+    2) Fallback: load from model_architecture.json + model_weights.weights.h5
+    """
+    # Custom InputLayer that converts batch_shape to input_shape for deserialization
+    class CustomInputLayer(tf.keras.layers.InputLayer):
+        def __init__(self, **kwargs):
+            if 'batch_shape' in kwargs:
+                batch_shape = kwargs.pop('batch_shape')
+                if batch_shape and len(batch_shape) > 1 and batch_shape[0] is None:
+                    kwargs['input_shape'] = tuple(batch_shape[1:])
+            super().__init__(**kwargs)
+
+    # DTypePolicy shim for some older saved models
+    class DTypePolicy:
+        def __init__(self, name):
+            self.name = name
+            self.compute_dtype = 'float32'
+            self.variable_dtype = 'float32'
+        def __eq__(self, other):
+            if isinstance(other, str):
+                return self.name == other
+            return getattr(other, 'name', None) == self.name
+
+    custom_objects = {
+        'InputLayer': CustomInputLayer,
+        'DTypePolicy': DTypePolicy,
+    }
+
+    # 1) Try Model.h5 directly
+    try:
+        return tf.keras.models.load_model('Model.h5', compile=False, custom_objects=custom_objects)
+    except Exception as e1:
+        st.warning(f"Direct model load failed: {e1}")
+
+    # 2) Fallback to JSON architecture + weights
+    arch_path = 'model_architecture.json'
+    weights_path = 'model_weights.weights.h5'
+    if os.path.exists(arch_path) and os.path.exists(weights_path):
+        try:
+            with open(arch_path, 'r', encoding='utf-8') as f:
+                arch_json = f.read()
+            model = tf.keras.models.model_from_json(arch_json, custom_objects=custom_objects)
+            model.load_weights(weights_path)
+            return model
+        except Exception as e2:
+            st.error(f"Failed to load model from JSON+weights: {e2}")
+
+    st.error("Could not load model. Ensure 'Model.h5' or JSON+weights are present and compatible.")
+    return None
+
+@st.cache_resource(show_spinner=False)
+def load_glove_embeddings(filepath: str):
+    """Load GloVe embeddings (100d) into a dictionary."""
     embeddings_index = {}
-    try:
-        with open(filepath, encoding='utf-8') as f:
-            for line in f:
-                values = line.split()
-                word = values[0]
-                coefs = np.asarray(values[1:], dtype='float32')
-                embeddings_index[word] = coefs
-        return embeddings_index
-    except FileNotFoundError:
-        return None
+    with open(filepath, encoding='utf-8') as f:
+        for line in f:
+            values = line.split()
+            word = values[0]
+            coefs = np.asarray(values[1:], dtype='float32')
+            embeddings_index[word] = coefs
+    return embeddings_index
 
-def initialize_model():
-    """Initialize the model and embeddings"""
-    global model, label_encoder, embeddings_index
-    
+@st.cache_resource(show_spinner=False)
+def load_resources():
+    model_local = load_model_robust()
+    embeddings_index_local = load_glove_embeddings('glove.6B.100d.txt')
+    le = LabelEncoder()
+    le.classes_ = np.array(['negative', 'neutral', 'positive'])
+    return model_local, embeddings_index_local, le
+
+model, embeddings_index, label_encoder = load_resources()
+if model is None or embeddings_index is None:
+    st.error("Failed to load model or GloVe embeddings. Ensure files are present.")
+    st.stop()
+
+MAX_LEN = 100
+
+# ======================
+# Helper Functions
+# ======================
+def record_audio(duration=5, fs=16000):
+    """Record mono audio and save as PCM 16-bit WAV compatible with SpeechRecognition."""
+    # Record directly as int16 for PCM WAV compatibility
+    recording = sd.rec(int(duration * fs), samplerate=fs, channels=1, dtype='int16')
+    sd.wait()
+
+    # Create a temp file path and ensure no handle conflicts on Windows
+    fd, file_path = tempfile.mkstemp(suffix=".wav")
+    os.close(fd)
+    wav_write(file_path, fs, recording.squeeze())  # int16 array -> PCM WAV
+    return file_path
+
+def transcribe_audio(file_path):
+    r = sr.Recognizer()
+    # Quick sanity checks
+    if not os.path.exists(file_path) or os.path.getsize(file_path) == 0:
+        return "Could not transcribe audio."
     try:
-        # Load the pre-trained model
-        model = tf.keras.models.load_model('Model.h5', compile=False)
-        
-        # Initialize label encoder with class labels
-        label_encoder = LabelEncoder()
-        label_encoder.classes_ = np.array(['negative', 'neutral', 'positive'])
-        
-        # Load GloVe embeddings
-        embeddings_index = load_glove_embeddings('glove.6B.100d.txt')
-        
-        if embeddings_index is None:
-            return False, "❌ GloVe embeddings file not found. Please ensure 'glove.6B.100d.txt' is in the project directory."
-        
-        return True, "✅ Model and embeddings loaded successfully!"
-        
+        with sr.AudioFile(file_path) as source:
+            audio = r.record(source)
+        try:
+            return r.recognize_google(audio)
+        except Exception as e:
+            st.error(f"Transcription failed: {e}")
+            return "Could not transcribe audio."
     except Exception as e:
-        return False, f"❌ Error loading model: {str(e)}"
+        st.error(f"Audio file read error: {e}")
+        return "Could not transcribe audio."
 
-def preprocess_text(text):
-    """Preprocess text for sentiment analysis"""
-    text = re.sub(r'@[A-Za-z0-9_]+', '', text)  # Remove mentions
-    text = re.sub(r'[^a-zA-Z\s]', '', text)    # Remove non-alphanumeric characters
-    text = text.lower()                        # Convert to lowercase
-    return text.strip()
+def preprocess_text(text: str) -> str:
+    """Preprocess text exactly like the notebook: remove mentions, non-letters, lowercase."""
+    text = re.sub(r'@[A-Za-z0-9_]+', '', text)
+    text = re.sub(r'[^a-zA-Z\s]', '', text)
+    text = text.lower()
+    return text
 
-def vectorize_text_with_glove(text, embeddings_index):
-    """Vectorize text using GloVe embeddings"""
-    if not embeddings_index:
-        return np.zeros(100)  # Return zero vector if no embeddings
-    
+def vectorize_text_with_glove(text: str, embeddings_index_local: dict) -> np.ndarray:
+    """Average GloVe vectors for tokens present."""
     words = text.split()
-    embedding_dim = len(next(iter(embeddings_index.values())))
-    text_vector = np.zeros(embedding_dim)
+    # Use dimension from first vector (100d expected)
+    embedding_dim = len(next(iter(embeddings_index_local.values())))
+    text_vector = np.zeros(embedding_dim, dtype=np.float32)
     count = 0
-    
     for word in words:
-        embedding_vector = embeddings_index.get(word)
-        if embedding_vector is not None:
-            text_vector += embedding_vector
+        vec = embeddings_index_local.get(word)
+        if vec is not None:
+            text_vector += vec
             count += 1
-    
-    if count != 0:
+    if count:
         text_vector /= count
-    
     return text_vector
 
-def predict_sentiment_from_text(text):
-    """Predict sentiment from text input"""
-    global model, label_encoder, embeddings_index
-    
-    if model is None or embeddings_index is None:
-        return "❌ Model not initialized. Please check if all required files are present.", "", {"Negative": 0, "Neutral": 0, "Positive": 0}
-    
-    if not text.strip():
-        return "❌ Please enter some text to analyze.", "", {"Negative": 0, "Neutral": 0, "Positive": 0}
-    
-    try:
-        # Preprocess and vectorize text
-        preprocessed_text = preprocess_text(text)
-        if not preprocessed_text:
-            return "❌ No valid text found after preprocessing.", "", {"Negative": 0, "Neutral": 0, "Positive": 0}
-        
-        text_vector = vectorize_text_with_glove(preprocessed_text, embeddings_index)
-        
-        # Reshape for model input (timesteps, features)
-        text_vector_reshaped = text_vector.reshape((1, 1, len(text_vector)))
-        
-        # Predict sentiment
-        pred_probs = model.predict(text_vector_reshaped, verbose=0)
-        pred_label_index = np.argmax(pred_probs, axis=1)
-        pred_label = label_encoder.inverse_transform(pred_label_index)[0]
-        
-        # Get confidence scores
-        confidence_scores = pred_probs[0]
-        labels = ['Negative', 'Neutral', 'Positive']
-        confidence_dict = {labels[i]: float(confidence_scores[i]) for i in range(len(labels))}
-        
-        # Format result
-        emoji_map = {'negative': '😞', 'neutral': '😐', 'positive': '😊'}
-        result = f"{emoji_map.get(pred_label, '')} **{pred_label.upper()}**"
-        
-        return result, f"Preprocessed text: '{preprocessed_text}'", confidence_dict
-        
-    except Exception as e:
-        return f"❌ Error during prediction: {str(e)}", "", {"Negative": 0, "Neutral": 0, "Positive": 0}
+def predict_sentiment(text: str):
+    """Notebook-style prediction: preprocess -> GloVe avg -> reshape (1,1,100) -> model.predict."""
+    if model is None:
+        return "neutral", np.array([0.33, 0.34, 0.33], dtype=np.float32)
+    pre = preprocess_text(text)
+    vec = vectorize_text_with_glove(pre, embeddings_index)
+    x = vec.reshape((1, 1, vec.shape[0]))  # (batch=1, timesteps=1, features=100)
+    pred_probs = model.predict(x, verbose=0)[0]
+    label = label_encoder.inverse_transform([np.argmax(pred_probs)])[0]
+    return label.capitalize(), pred_probs
 
-def record_audio_and_predict(duration):
-    """Record audio and predict sentiment"""
-    global model, label_encoder, embeddings_index
-    
-    if model is None or embeddings_index is None:
-        return "❌ Model not initialized. Please check if all required files are present.", "", "", {"Negative": 0, "Neutral": 0, "Positive": 0}
-    
-    try:
-        # Create temporary file for recording
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as tmp_file:
-            temp_filename = tmp_file.name
-        
-        # Record audio
-        samplerate = 16000
-        print(f"🎙️ Recording for {duration} seconds...")
-        recording = sd.rec(int(duration * samplerate), samplerate=samplerate, channels=1, dtype='int16')
-        sd.wait()  # Wait until recording is complete
-        
-        # Save recording
-        write(temp_filename, samplerate, recording)
-        
-        # Convert audio to text
-        recognizer = sr.Recognizer()
-        with sr.AudioFile(temp_filename) as source:
-            audio = recognizer.record(source)
-        
-        recognized_text = recognizer.recognize_google(audio)
-        
-        # Clean up temporary file
-        os.unlink(temp_filename)
-        
-        if not recognized_text.strip():
-            return "❌ No speech detected. Please try again.", "", "", {"Negative": 0, "Neutral": 0, "Positive": 0}
-        
-        # Predict sentiment
-        sentiment_result, processed_text, confidence_scores = predict_sentiment_from_text(recognized_text)
-        
-        return sentiment_result, f"Recognized text: '{recognized_text}'", processed_text, confidence_scores
-        
-    except sr.UnknownValueError:
-        return "❌ Could not understand the audio. Please speak clearly and try again.", "", "", {"Negative": 0, "Neutral": 0, "Positive": 0}
-    except sr.RequestError as e:
-        return f"❌ Speech recognition service error: {str(e)}", "", "", {"Negative": 0, "Neutral": 0, "Positive": 0}
-    except Exception as e:
-        return f"❌ Error during audio recording/processing: {str(e)}", "", "", {"Negative": 0, "Neutral": 0, "Positive": 0}
+# ======================
+# Streamlit UI
+# ======================
+st.set_page_config(page_title="🎤 Speech Sentiment App", page_icon="🎤", layout="wide")
 
-# Initialize the model at startup
-init_success, init_message = initialize_model()
-
-# Create Gradio interface
-with gr.Blocks(
-    theme=gr.themes.Soft(primary_hue="blue", secondary_hue="slate"),
-    title="Speech Sentiment Analysis",
-    css="""
-    .gradio-container {
-        max-width: 1000px !important;
-    }
-    .status-box {
-        border-radius: 10px;
-        padding: 15px;
-        margin: 10px 0;
-    }
+# Modern dark theme styling
+st.markdown(
     """
-) as demo:
-    
-    gr.HTML("""
-    <div style="text-align: center; padding: 20px;">
-        <h1>🎤 Speech Sentiment Analysis</h1>
-        <p>Analyze sentiment from text or speech using deep learning and GloVe embeddings</p>
-    </div>
-    """)
-    
-    # Status display
-    status_display = gr.HTML(
-        value=f"<div class='status-box' style='background-color: {'#d4edda' if init_success else '#f8d7da'}; color: {'#155724' if init_success else '#721c24'}'>{init_message}</div>"
-    )
-    
-    with gr.Tabs() as tabs:
-        
-        # Text Analysis Tab
-        with gr.Tab("📝 Text Analysis", id="text_tab"):
-            gr.Markdown("### Enter text to analyze its sentiment")
-            
-            with gr.Row():
-                with gr.Column(scale=2):
-                    text_input = gr.Textbox(
-                        label="Input Text",
-                        placeholder="Enter the text you want to analyze for sentiment...",
-                        lines=4,
-                        max_lines=8
-                    )
-                    
-                    text_analyze_btn = gr.Button("🔍 Analyze Sentiment", variant="primary", size="lg")
-                
-                with gr.Column(scale=1):
-                    text_result = gr.HTML(label="Sentiment Result")
-                    text_processed = gr.Textbox(label="Processing Info", interactive=False)
-                    text_confidence = gr.Label(label="Confidence Scores", num_top_classes=3)
-        
-        # Speech Analysis Tab
-        with gr.Tab("🎙️ Speech Analysis", id="speech_tab"):
-            gr.Markdown("### Record your speech and analyze its sentiment")
-            
-            with gr.Row():
-                with gr.Column(scale=1):
-                    duration_slider = gr.Slider(
-                        minimum=2,
-                        maximum=10,
-                        value=5,
-                        step=1,
-                        label="Recording Duration (seconds)"
-                    )
-                    
-                    speech_record_btn = gr.Button("🎙️ Start Recording", variant="primary", size="lg")
-                    
-                    gr.Markdown("**Instructions:**\n- Click the button above to start recording\n- Speak clearly into your microphone\n- Wait for the analysis to complete")
-                
-                with gr.Column(scale=2):
-                    speech_result = gr.HTML(label="Sentiment Result")
-                    speech_recognized = gr.Textbox(label="Recognized Text", interactive=False)
-                    speech_processed = gr.Textbox(label="Processing Info", interactive=False)
-                    speech_confidence = gr.Label(label="Confidence Scores", num_top_classes=3)
-    
-    # About section
-    with gr.Accordion("ℹ️ About This Application", open=False):
-        gr.Markdown("""
-        This application uses:
-        - **Deep Learning Model**: LSTM-based neural network for sentiment classification
-        - **GloVe Embeddings**: Pre-trained word vectors for text representation
-        - **Speech Recognition**: Google's speech-to-text API
-        - **Audio Processing**: Real-time audio recording and processing
-        
-        **Sentiment Classes:**
-        - 😞 **Negative**: Sad, angry, disappointed emotions
-        - 😐 **Neutral**: Objective, factual statements
-        - 😊 **Positive**: Happy, satisfied, excited emotions
-        
-        **Requirements:**
-        - Model.h5 (trained model file)
-        - glove.6B.100d.txt (GloVe embeddings)
-        - Working microphone for speech analysis
-        """)
-    
-    # Event handlers
-    text_analyze_btn.click(
-        fn=predict_sentiment_from_text,
-        inputs=[text_input],
-        outputs=[text_result, text_processed, text_confidence]
-    )
-    
-    speech_record_btn.click(
-        fn=record_audio_and_predict,
-        inputs=[duration_slider],
-        outputs=[speech_result, speech_recognized, speech_processed, speech_confidence]
-    )
-    
-    # Example inputs
-    gr.Examples(
-        examples=[
-            ["I love this product! It works amazing and I'm so happy with it."],
-            ["The service was terrible and I'm really disappointed."],
-            ["The weather is cloudy today."],
-            ["This movie is absolutely fantastic! Best film I've seen this year."],
-            ["I hate waiting in long queues. It's so frustrating."]
-        ],
-        inputs=text_input,
-        outputs=[text_result, text_processed, text_confidence],
-        fn=predict_sentiment_from_text,
-        cache_examples=False
-    )
+    <style>
+    .main { background: linear-gradient(135deg, #0b0b0b, #141414); }
+    #MainMenu, header, footer { visibility: hidden; }
+    .main .block-container { padding-top: 0.6rem; }
 
-if __name__ == "__main__":
-    demo.launch(
-        server_name="0.0.0.0",
-        server_port=7860,
-        share=False,
-        show_error=True,
-        debug=False
-    )
+    .title-container { text-align:center; padding: 1.5rem 0 0.5rem; }
+    .title { font-size: 2.2rem; color: #ffffff; margin: 0; font-weight: 700; }
+    .subtitle { color:#cfcfcf; font-size:1rem; margin-top: 0.25rem; }
+
+    .card {
+        background: linear-gradient(135deg, rgba(30,30,30,0.85), rgba(18,18,18,0.95));
+        border: 1px solid rgba(255,255,255,0.06);
+        border-radius: 20px;
+        padding: 1.6rem 1.4rem;
+        margin: 0.9rem auto;
+        color: #fff;
+        box-shadow: 0 12px 28px rgba(0,0,0,0.35);
+        text-align: center;
+        max-width: 980px;
+    }
+
+    .hero-card {
+        padding: 2.2rem 1.6rem;
+    }
+
+    .hero-title { font-size: 3.4rem; font-weight: 800; line-height: 1.05; margin: 0 0 .4rem; }
+    .hero-subtitle { color:#cfcfcf; font-size: 1.15rem; margin: 0; }
+
+    .analysis-title { font-size: 1.6rem; font-weight: 750; margin: 0 0 .35rem; }
+    .analysis-subtitle { color:#bdbdbd; font-size: 1rem; margin: 0 0 .8rem; }
+
+    .mic-area { width:100%; display:flex; justify-content:center; align-items:center; padding:.4rem 0 .1rem; margin: 0 auto; }
+    .mic-area .stButton>button {
+        width: clamp(72px, 8vw, 96px) !important; height: clamp(72px, 8vw, 96px) !important;
+        min-width: unset !important; 
+        border-radius: 999px !important; border: none !important; outline: none !important;
+        background: #47d764 !important; color:#0b0b0b !important; font-size: 26px !important; font-weight: 800 !important;
+        box-shadow: 0 6px 16px rgba(71,215,100,0.30) !important;
+        transition: transform .18s ease, box-shadow .18s ease !important;
+        position: relative; display: inline-flex; align-items:center; justify-content:center;
+        padding: 0 !important; 
+        animation: ringPulse 2.6s ease-out infinite;
+    }
+    .mic-area .stButton>button:hover { transform: translateY(-1px) scale(1.03); box-shadow: 0 14px 28px rgba(71,215,100,0.42) !important; }
+
+    @keyframes ringPulse {
+        0% { box-shadow: 0 0 0 0 rgba(71,215,100,0.40); }
+        60% { box-shadow: 0 0 0 12px rgba(71,215,100,0.00); }
+        100% { box-shadow: 0 0 0 0 rgba(71,215,100,0.00); }
+    }
+
+    .badge {
+        display:inline-block; padding: 6px 14px; border-radius: 270px;
+        background: rgba(255,255,255,0.08); font-weight: 700;
+    }
+    .muted { color: #cfcfcf; font-size: .95rem; }
+
+    /* Info cards grid */
+    .info-grid { 
+        display: grid; 
+        grid-template-columns: 1fr; 
+        gap: 1rem; 
+        max-width: 980px; 
+        margin: 1rem auto; 
+    }
+    @media (min-width: 760px) {
+        .info-grid { grid-template-columns: 1fr 1fr; }
+    }
+    .info-card {
+        background: linear-gradient(135deg, rgba(30,30,30,0.85), rgba(18,18,18,0.95));
+        border: 1px solid rgba(255,255,255,0.06);
+        border-radius: 16px;
+        padding: 1.1rem 1rem;
+        color: #fff;
+        box-shadow: 0 10px 22px rgba(0,0,0,0.32);
+        height: 100%;
+    }
+
+    /* Global button fallback styling (ensures mic button looks correct even outside .mic-area) */
+    .stButton>button {
+        border: none !important;
+        border-radius: 999px !important;
+        width: clamp(64px, 8vw, 92px) !important;
+        height: clamp(64px, 8vw, 92px) !important;
+        background: #47d764 !important;
+        color: #0b0b0b !important;
+        font-size: 26px !important;
+        font-weight: 800 !important;
+        box-shadow: 0 6px 16px rgba(71,215,100,0.30) !important;
+        padding: 0 !important;
+    }
+    .stButton>button:hover { transform: translateY(-1px) scale(1.02); box-shadow: 0 10px 22px rgba(71,215,100,0.42) !important; }
+
+    /* Transcription text styling */
+    .transcription-text { font-size: 1.25rem; color: #ececec; margin: .5rem 0 0; }
+    .transcription-card { text-align: center; }
+    .centered { text-align: center; }
+    /* Ensure Streamlit buttons are horizontally centered */
+    div.stButton { display: flex; justify-content: center; }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+st.markdown(
+    """
+    <div class="card hero-card">
+        <div class="hero-title">Speech Sentiment<br/>Analysis</div>
+        <div class="hero-subtitle">Speak your mind, AI understands your emotions in real-time</div>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
+st.markdown(
+    """
+    <div class="card analysis-card">
+      <div class="analysis-title">⚙️ AI Voice Analysis</div>
+      <div class="analysis-subtitle">Click the microphone to start recording for 5 seconds</div>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
+st.markdown("<div class='mic-area'>", unsafe_allow_html=True)
+left, center, right = st.columns([1,1,1])
+with center:
+    mic_clicked = st.button("🎤", key="mic_record")
+    st.markdown("<p class='centered muted'>Click to start recording…</p>", unsafe_allow_html=True)
+st.markdown("</div>", unsafe_allow_html=True)
+
+if mic_clicked:
+    st.markdown("<p class='centered muted'>🎙 Recording for 5 seconds...</p>", unsafe_allow_html=True)
+    with st.spinner("Recording 5 seconds..."):
+        file_path = record_audio()
+
+    # Listen card (centered)
+    st.markdown("<div class='card'>", unsafe_allow_html=True)
+    st.markdown("<h4 class='centered'>▶️ Listen to your recording</h4>", unsafe_allow_html=True)
+    try:
+        audio_bytes = open(file_path, 'rb').read()
+        st.audio(audio_bytes, format='audio/wav')
+    except Exception as e:
+        st.error(f"Audio playback failed: {e}")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    # Transcription card (centered)
+    st.markdown("<p class='centered muted'>📝 Transcribing speech...</p>", unsafe_allow_html=True)
+    with st.spinner("Transcribing speech..."):
+        text = transcribe_audio(file_path)
+    st.markdown("<div class='card transcription-card'> <h4>📝 Transcription</h4>", unsafe_allow_html=True)
+    safe_text = html.escape(text if text else "(no speech detected)")
+    st.markdown(f"<p class='transcription-text'>{safe_text}</p>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    # Prediction card (centered)
+    if text and text != "Could not transcribe audio.":
+        st.markdown("<p class='centered muted'>📊 Analyzing sentiment...</p>", unsafe_allow_html=True)
+        with st.spinner("Analyzing sentiment..."):
+            sentiment, probs = predict_sentiment(text)
+
+        emoji_map = {"Positive": "😊", "Neutral": "😐", "Negative": "😔"}
+        color_map = {"Positive": "#70e000", "Neutral": "#ffd166", "Negative": "#ff6b6b"}
+        badge_color = color_map.get(sentiment, "#fff")
+        badge_emoji = emoji_map.get(sentiment, "🤖")
+
+        st.markdown("<div class='card'>", unsafe_allow_html=True)
+        st.markdown("<h4 class='centered'>📊 Sentiment Prediction</h4>", unsafe_allow_html=True)
+        st.markdown(
+            f"<div class='centered'><span class='badge' style='color:{badge_color}'>{badge_emoji} {sentiment}</span></div>",
+            unsafe_allow_html=True
+        )
+        prob_df = pd.DataFrame({
+            'Sentiment': ['Negative 😔', 'Neutral 😐', 'Positive 😊'],
+            'Probability': probs
+        })
+        fig = px.bar(prob_df, x='Sentiment', y='Probability',
+                     color='Sentiment',
+                     color_discrete_map={
+                         'Negative 😔': '#ff6b6b',
+                         'Neutral 😐': '#ffd166',
+                         'Positive 😊': '#70e000'
+                     })
+        fig.update_layout(showlegend=False, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
+                          font=dict(color='#ffffff'), yaxis=dict(range=[0,1], tickformat='.0%', gridcolor='rgba(255,255,255,0.1)'),
+                          xaxis=dict(gridcolor='rgba(255,255,255,0.05)'), margin=dict(l=10,r=10,t=10,b=10))
+        st.plotly_chart(fig, use_container_width=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+       
+
+# Subtle footer
+
+# Additional informative sections
+st.markdown("""
+<div class='info-grid'>
+    <div class='info-card'>
+        <h4>🧭 How it works</h4>
+        <ol style='margin-top:.4rem;'>
+                <li>Click the green mic to record for 5 seconds (mono, 16 kHz).</li>
+                <li>We transcribe speech to text using an online speech recognizer.</li>
+                <li>Text is cleaned and converted to a 100‑dimensional vector with GloVe.</li>
+                <li>A trained neural network predicts Negative / Neutral / Positive.</li>
+        </ol>
+    </div>
+    <div class='info-card'>
+        <h4>💡 Tips for best results</h4>
+        <ul style='margin-top:.4rem;'>
+                <li>Speak clearly in a quiet place; keep the device close.</li>
+                <li>Short sentences (5–10 words) tend to transcribe more accurately.</li>
+                <li>Avoid filler words; speak at a consistent pace.</li>
+        </ul>
+    </div>
+    <div class='info-card'>
+        <h4>🔒 Privacy</h4>
+        <p class='muted' style='margin:.4rem 0 0;'>Your audio is recorded locally, saved to a temporary WAV for transcription, and not stored permanently by this app.</p>
+    </div>
+    <div class='info-card'>
+        <h4>🧰 Tech stack</h4>
+        <p class='muted' style='margin:.4rem 0 0;'>Streamlit • TensorFlow/Keras • NumPy • scikit‑learn • GloVe (100d) • Plotly</p>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+
+
+st.markdown('<p class="muted" style="text-align:center;margin-top:1rem;">🤖 Powered by TensorFlow • 🚀 Built with Streamlit</p>', unsafe_allow_html=True)

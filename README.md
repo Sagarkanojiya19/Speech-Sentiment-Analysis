@@ -1,163 +1,106 @@
-<<<<<<< HEAD
-# 🎤 Speech Sentiment Analysis
+# Speech Sentiment Analysis App
 
-A comprehensive sentiment analysis application that processes both text and speech input using deep learning and natural language processing techniques.
+A modern React/Next.js frontend with Python TensorFlow backend for real-time speech sentiment analysis.
 
 ## Features
 
-- **Text Sentiment Analysis**: Analyze sentiment from written text
-- **Speech-to-Text + Sentiment**: Record audio, convert to text, and analyze sentiment
-- **Real-time Processing**: Live audio recording and immediate sentiment prediction
-- **Interactive Web Interface**: Clean, user-friendly Gradio interface
-- **Confidence Scores**: Detailed prediction confidence for all sentiment classes
+- 🎤 Real-time speech recording and transcription
+- 🤖 AI-powered sentiment analysis using your trained TensorFlow model
+- 📊 Interactive sentiment confidence visualization
+- 🎨 Modern dark theme with glassmorphism effects
+- 📱 Responsive design for all devices
 
-## Sentiment Classes
+## Setup Instructions
 
-- 😞 **Negative**: Sad, angry, disappointed emotions
-- 😐 **Neutral**: Objective, factual statements  
-- 😊 **Positive**: Happy, satisfied, excited emotions
+### 1. Frontend (React/Next.js)
 
-## Technology Stack
+The frontend is already set up and ready to run in v0. It will automatically start when you preview the project.
 
-- **Deep Learning**: TensorFlow/Keras LSTM model
-- **Word Embeddings**: GloVe (Global Vectors for Word Representation)
-- **Speech Recognition**: Google Speech-to-Text API
-- **Audio Processing**: SoundDevice for real-time recording
-- **Web Interface**: Gradio for interactive UI
-- **Text Processing**: scikit-learn, NLTK, regex
+### 2. Backend (Python API)
 
-## Requirements
+You need to run the Python API backend separately to get real sentiment predictions.
 
-### Files Needed
-- `Model.h5` - Pre-trained LSTM sentiment analysis model
-- `glove.6B.100d.txt` - GloVe word embeddings (100-dimensional)
-- `Tweets.csv` - Training dataset (for reference)
+#### Prerequisites
 
-### System Requirements
-- Python 3.8+
-- Working microphone for speech analysis
-- Internet connection for speech-to-text API
+1. **Model Files**: Place these files in the `api/` directory:
+   - `Model.h5` - Your trained TensorFlow model
+   - `glove.6B.100d.txt` - GloVe embeddings file
 
-## Installation
+2. **Python Environment**: Install Python 3.8+ and pip
 
-1. **Clone the repository**:
-   ```bash
-   git clone https://github.com/yourusername/speech-sentiment-analysis.git
-   cd speech-sentiment-analysis
-   ```
+#### Installation
 
-2. **Create virtual environment**:
-   ```bash
-   python -m venv speech_sentiment_env
-   # On Windows:
-   speech_sentiment_env\Scripts\activate
-   # On macOS/Linux:
-   source speech_sentiment_env/bin/activate
-   ```
+1. Navigate to the `api/` directory:
+   \`\`\`bash
+   cd api/
+   \`\`\`
 
-3. **Install dependencies**:
-   ```bash
+2. Install Python dependencies:
+   \`\`\`bash
    pip install -r requirements.txt
-   ```
+   \`\`\`
 
-4. **Download GloVe embeddings**:
-   - Download `glove.6B.100d.txt` from [Stanford GloVe](https://nlp.stanford.edu/projects/glove/)
-   - Place it in the project root directory
+3. Make sure your model files are in the `api/` directory:
+   \`\`\`
+   api/
+   ├── sentiment_api.py
+   ├── requirements.txt
+   ├── Model.h5              # Your trained model
+   └── glove.6B.100d.txt     # GloVe embeddings
+   \`\`\`
 
-5. **Ensure model file exists**:
-   - Make sure `Model.h5` is in the project directory
-   - If you need to train the model, run the training notebook first
+4. Run the Python API server:
+   \`\`\`bash
+   python sentiment_api.py
+   \`\`\`
 
-## Usage
+   You should see:
+   \`\`\`
+   ✅ Model and embeddings loaded successfully!
+   🚀 Starting Flask API server...
+   * Running on http://0.0.0.0:5000
+   \`\`\`
 
-### Running the Application
+### 3. Using the App
 
-```bash
-python app.py
-```
-
-The application will launch on `http://localhost:7860`
-
-### Using the Interface
-
-1. **Text Analysis Tab**:
-   - Enter text in the input field
-   - Click "🔍 Analyze Sentiment"
-   - View results with confidence scores
-
-2. **Speech Analysis Tab**:
-   - Set recording duration (2-10 seconds)
-   - Click "🎙️ Start Recording"
-   - Speak clearly into your microphone
-   - View sentiment analysis of transcribed speech
-
-## Project Structure
-
-```
-speech-sentiment-analysis/
-├── app.py                              # Main Gradio application
-├── Train.py.ipynb                      # Model training notebook
-├── Speech to Sentiment (Run Code).ipynb # Testing notebook
-├── requirements.txt                    # Python dependencies
-├── Model.h5                           # Trained LSTM model
-├── model_architecture.json           # Model architecture
-├── model_weights.weights.h5           # Model weights
-├── glove.6B.100d.txt                 # GloVe embeddings (download needed)
-├── Tweets.csv                         # Training dataset
-└── README.md                          # This file
-```
-
-## Model Architecture
-
-- **Input Layer**: GloVe embeddings (100 dimensions)
-- **LSTM Layers**: Bidirectional LSTM with dropout
-- **Output Layer**: Softmax for 3-class classification
-- **Training Data**: Twitter sentiment dataset
-- **Accuracy**: ~85% on validation set
+1. **Start the Python API** (as described above)
+2. **Open the React app** in v0 preview
+3. **Click the microphone button** to start recording
+4. **Speak clearly** for up to 5 seconds
+5. **View results** - transcription and real sentiment analysis
 
 ## API Endpoints
 
-When running the app, these endpoints are available:
-- `http://localhost:7860/` - Main interface
-- `http://localhost:7860/api/predict/` - API endpoint for predictions
+- `GET /health` - Check if the API and model are loaded
+- `POST /predict` - Analyze sentiment for given text
 
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+Example API usage:
+\`\`\`bash
+curl -X POST http://localhost:5000/predict \
+  -H "Content-Type: application/json" \
+  -d '{"text": "I love this amazing product!"}'
+\`\`\`
 
 ## Troubleshooting
 
-### Common Issues
+### API Connection Issues
+- Make sure the Python API is running on port 5000
+- Check that both `Model.h5` and `glove.6B.100d.txt` are in the `api/` directory
+- Verify no firewall is blocking port 5000
 
-1. **"Model not initialized" error**:
-   - Ensure `Model.h5` and `glove.6B.100d.txt` are in the project directory
-   - Check file permissions
+### Model Loading Issues
+- Ensure `Model.h5` is the exact model file from your training
+- Verify `glove.6B.100d.txt` is the correct GloVe embeddings file
+- Check Python console for specific error messages
 
-2. **Audio recording issues**:
-   - Verify microphone permissions
-   - Check audio drivers
-   - Try different browsers if using web interface
+### Browser Issues
+- Enable microphone permissions when prompted
+- Use Chrome/Edge for best Web Speech API support
+- Check browser console for JavaScript errors
 
-3. **Speech recognition errors**:
-   - Ensure stable internet connection
-   - Speak clearly and avoid background noise
-   - Check microphone quality
+## Architecture
 
-4. **Import errors**:
-   - Activate virtual environment
-   - Install all requirements: `pip install -r requirements.txt`
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-- Stanford NLP Group for GloVe embeddings
-- Google for Speech-to-Text API
-- Gradio team for the amazing interface framework
-- Twitter for the sentiment dataset
+- **Frontend**: Next.js/React with TypeScript, Tailwind CSS, shadcn/ui
+- **Backend**: Flask API with TensorFlow, scikit-learn, numpy
+- **ML Model**: Your trained TensorFlow model with GloVe embeddings
+- **Communication**: REST API calls between frontend and backend

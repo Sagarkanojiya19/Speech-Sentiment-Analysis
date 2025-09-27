@@ -1,0 +1,13 @@
+# Base64 encoded icons for use in the streamlit app
+
+def get_mic_icon():
+    """Return a base64 encoded microphone SVG icon"""
+    return """
+    PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJjdXJyZW50Q29sb3IiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBjbGFzcz0ibHVjaWRlIGx1Y2lkZS1taWMiPjxwYXRoIGQ9Ik0xMiAxYTMgMyAwIDAgMC0zIDN2OGEzIDMgMCAwIDAgNiAwVjRhMyAzIDAgMCAwLTMtM3oiIGZpbGw9IiNmZmZmZmYiIC8+PHBhdGggZD0iTTE5IDEwdjJhNyA3IDAgMCAxLTcgN2gwYTcgNyAwIDAgMS03LTd2LTJNMTIgMTh2NGg0TTggMjJoOCIgc3Ryb2tlPSIjZmZmZmZmIiAvPjwvc3ZnPg==
+    """
+
+def get_wave_icon():
+    """Return a base64 encoded wave SVG icon"""
+    return """
+    PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJjdXJyZW50Q29sb3IiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBjbGFzcz0ibHVjaWRlIGx1Y2lkZS13YXZlZm9ybSI+PHBhdGggZD0iTTEgMTZoM2EyIDIgMCAwIDAgMiAtMnYtYTIgMiAwIDAgMSAyIC0yaDZhMiAyIDAgMCAwIDIgLTJ2LWEyIDIgMCAwIDEgMiAtMmgzIiBmaWxsPSJub25lIiBzdHJva2U9IiNmZmZmZmYiIHN0cm9rZS13aWR0aD0iMS41IiAvPjwvc3ZnPg==
+    """
