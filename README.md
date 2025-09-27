@@ -1,4 +1,9 @@
+<<<<<<< HEAD
 # Speech Sentiment Analysis App
+=======
+
+# 🎤 Speech Sentiment Analysis
+>>>>>>> 0d6ee6dc6f533cb44ce1ea23355fc7c1966322ce
 
 A modern React/Next.js frontend with Python TensorFlow backend for real-time speech sentiment analysis.
 
@@ -26,6 +31,7 @@ You need to run the Python API backend separately to get real sentiment predicti
    - `Model.h5` - Your trained TensorFlow model
    - `glove.6B.100d.txt` - GloVe embeddings file
 
+<<<<<<< HEAD
 2. **Python Environment**: Install Python 3.8+ and pip
 
 #### Installation
@@ -104,3 +110,24 @@ curl -X POST http://localhost:5000/predict \
 - **Backend**: Flask API with TensorFlow, scikit-learn, numpy
 - **ML Model**: Your trained TensorFlow model with GloVe embeddings
 - **Communication**: REST API calls between frontend and backend
+=======
+### Using the Interface
+
+1. **Text Analysis Tab**:
+   - Enter text in the input field
+   - Click "🔍 Analyze Sentiment"
+   - View results with confidence scores
+
+2. **Speech Analysis Tab**:
+   - Set recording duration (2-10 seconds)
+   - Click "🎙️ Start Recording"
+   - Speak clearly into your microphone
+   - View sentiment analysis of transcribed speech
+
+## Acknowledgments
+
+- Stanford NLP Group for GloVe embeddings
+- Google for Speech-to-Text API
+- Gradio team for the amazing interface framework
+- Twitter for the sentiment dataset
+>>>>>>> 0d6ee6dc6f533cb44ce1ea23355fc7c1966322ce
