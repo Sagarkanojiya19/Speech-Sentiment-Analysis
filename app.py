@@ -4,7 +4,7 @@ import numpy as np
 import tempfile
 import os
 import tensorflow as tf
-# import speech_recognition as sr
+import speech_recognition as sr
 from scipy.io.wavfile import write as wav_write, read as wav_read
 import re
 from sklearn.preprocessing import LabelEncoder
@@ -74,6 +74,12 @@ def load_model_robust():
 def load_glove_embeddings(filepath: str):
     """Load GloVe embeddings (100d) into a dictionary."""
     embeddings_index = {}
+    if not os.path.exists(filepath):
+        st.warning(
+            "GloVe file 'glove.6B.100d.txt' not found. You can still use the app, "
+            "but predictions may be less accurate until you upload the embeddings below."
+        )
+        return embeddings_index
     with open(filepath, encoding='utf-8') as f:
         for line in f:
             values = line.split()
@@ -169,8 +175,11 @@ def preprocess_text(text: str) -> str:
 def vectorize_text_with_glove(text: str, embeddings_index_local: dict) -> np.ndarray:
     """Average GloVe vectors for tokens present."""
     words = text.split()
-    # Use dimension from first vector (100d expected)
-    embedding_dim = len(next(iter(embeddings_index_local.values())))
+    # Use dimension from first vector (100d expected); default to 100 if embeddings are missing
+    if embeddings_index_local:
+        embedding_dim = len(next(iter(embeddings_index_local.values())))
+    else:
+        embedding_dim = 100
     text_vector = np.zeros(embedding_dim, dtype=np.float32)
     count = 0
     for word in words:
@@ -182,12 +191,16 @@ def vectorize_text_with_glove(text: str, embeddings_index_local: dict) -> np.nda
         text_vector /= count
     return text_vector
 
+def get_embeddings_index() -> dict:
+    """Prefer runtime-uploaded embeddings (session) else the initially loaded ones."""
+    return st.session_state.get('embeddings_index', embeddings_index)
+
 def predict_sentiment(text: str):
     """Notebook-style prediction: preprocess -> GloVe avg -> reshape (1,1,100) -> model.predict."""
     if model is None:
         return "neutral", np.array([0.33, 0.34, 0.33], dtype=np.float32)
     pre = preprocess_text(text)
-    vec = vectorize_text_with_glove(pre, embeddings_index)
+    vec = vectorize_text_with_glove(pre, get_embeddings_index())
     x = vec.reshape((1, 1, vec.shape[0]))  # (batch=1, timesteps=1, features=100)
     pred_probs = model.predict(x, verbose=0)[0]
     label = label_encoder.inverse_transform([np.argmax(pred_probs)])[0]
