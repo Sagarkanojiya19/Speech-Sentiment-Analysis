@@ -354,8 +354,10 @@ st.markdown(
 )
 
 st.markdown("<div class='mic-area'>", unsafe_allow_html=True)
-mic_clicked = st.button("🎤", key="mic_record")
-st.markdown("<p class='centered muted'>Click to start recording…</p>", unsafe_allow_html=True)
+left, center, right = st.columns([1,1,1])
+with center:
+    mic_clicked = st.button("🎤", key="mic_record")
+    st.markdown("<p class='centered muted'>Click to start recording…</p>", unsafe_allow_html=True)
 st.markdown("</div>", unsafe_allow_html=True)
 
 # Clicking the mic enters recording mode
