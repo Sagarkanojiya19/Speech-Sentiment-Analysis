@@ -1,7 +1,3 @@
-
-# Speech Sentiment Analysis App
-=======
-
 # 🎤 Speech Sentiment Analysis
 
 
