@@ -304,12 +304,12 @@ st.markdown(
         height: 100%;
     }
 
-    /* Global button fallback styling (ensures mic button looks correct even outside .mic-area) */
+    /* Global button fallback styling (ensures mic button looks correct even outside .mic-area)
     .stButton>button {
-        border: none !important;
+        (64px, 8vw, 92px) !important;
+        height: clamp(border: none !important;
         border-radius: 999px !important;
-        width: clamp(64px, 8vw, 92px) !important;
-        height: clamp(64px, 8vw, 92px) !important;
+        width: clamp64px, 8vw, 92px) !important;
         background: #47d764 !important;
         color: #0b0b0b !important;
         font-size: 26px !important;
@@ -317,7 +317,7 @@ st.markdown(
         box-shadow: 0 6px 16px rgba(71,215,100,0.30) !important;
         padding: 0 !important;
     }
-    .stButton>button:hover { transform: translateY(-1px) scale(1.02); box-shadow: 0 10px 22px rgba(71,215,100,0.42) !important; }
+    .stButton>button:hover { transform: translateY(-1px) scale(1.02); box-shadow: 0 10px 22px rgba(71,215,100,0.42) !important; }*/
 
     /* Transcription text styling */
     .transcription-text { font-size: 1.25rem; color: #ececec; margin: .5rem 0 0; }
@@ -327,17 +327,54 @@ st.markdown(
     /* Grid centering ensures exact horizontal alignment */
     /* Mic button alignment fix */
 
-    .mic-wrap .stButton>button { width: clamp(80px, 9vw, 110px) !important; height: clamp(80px, 9vw, 110px) !important; }
-    .mic-wrap div.stButton {
+        /* Universal button centering that works in both local and deployed environments */
+    div.stButton,
+    div[data-testid="stButton"],
+    .mic-wrap div.stButton,
+    .mic-wrap div[data-testid="stButton"] {
         display: flex !important;
         justify-content: center !important;
         align-items: center !important;
         width: 100% !important;
+        text-align: center !important;
     }
-    .mic-wrap .stButton>button {
+
+    /* Button styling with multiple selectors for compatibility */
+    div.stButton > button,
+    div[data-testid="stButton"] > button,
+    .stButton > button,
+    div[data-testid="stButton"] > button:first-child,
+    button[kind="primary"],
+    button[kind="secondary"] {
+        width: clamp(80px, 9vw, 110px) !important;
+        height: clamp(80px, 9vw, 110px) !important;
+        min-width: unset !important;
+        border-radius: 999px !important;
+        border: none !important;
+        outline: none !important;
+        background: #47d764 !important;
+        color: #0b0b0b !important;
+        font-size: 26px !important;
+        font-weight: 800 !important;
+        box-shadow: 0 6px 16px rgba(71,215,100,0.30) !important;
+        transition: transform .18s ease, box-shadow .18s ease !important;
+        position: relative !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 0 !important;
         margin: 0 auto !important;
-        display: flex !important;
+        animation: ringPulse 2.6s ease-out infinite;
     }
+
+    /* Hover effects */
+    div.stButton > button:hover,
+    div[data-testid="stButton"] > button:hover,
+    .stButton > button:hover {
+        transform: translateY(-1px) scale(1.03) !important;
+        box-shadow: 0 14px 28px rgba(71,215,100,0.42) !important;
+    }
+
     </style>
     """,
     unsafe_allow_html=True
