@@ -415,10 +415,17 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-st.markdown("<div class='mic-wrap'>", unsafe_allow_html=True)
-mic_clicked = st.button("🎤", key="mic_record")
+# st.markdown("<div class='mic-wrap'>", unsafe_allow_html=True)
+# mic_clicked = st.button("🎤", key="mic_record")
+# st.markdown("<p class='centered muted'>Click to start recording…</p>", unsafe_allow_html=True)
+# st.markdown("</div>", unsafe_allow_html=True)
+# Use columns for reliable button centering (works in both local and deployment)
+col1, col2, col3 = st.columns([1, 1, 1])
+with col2:
+    mic_clicked = st.button("🎤", key="mic_record")
+
 st.markdown("<p class='centered muted'>Click to start recording…</p>", unsafe_allow_html=True)
-st.markdown("</div>", unsafe_allow_html=True)
+
 
 # Clicking the mic enters recording mode
 if mic_clicked:
