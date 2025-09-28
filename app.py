@@ -255,6 +255,7 @@ st.markdown(
     .analysis-subtitle { color:#bdbdbd; font-size: 1rem; margin: 0 0 .8rem; }
 
     
+    
     .mic-area { width:100%; display:flex; justify-content:center; align-items:center; padding:.4rem 0 .1rem; margin: 0 auto; position: relative; min-height: 120px; }
     .mic-wrap { max-width: 980px; margin: 0 auto; display: grid; place-items: center; }
     .mic-area .stButton>button {
@@ -323,9 +324,20 @@ st.markdown(
     .transcription-card { text-align: center; }
     .centered { text-align: center; }
     /* Ensure Streamlit buttons are horizontally centered */
-    div.stButton { display: flex; justify-content: center; }
     /* Grid centering ensures exact horizontal alignment */
+    /* Mic button alignment fix */
+
     .mic-wrap .stButton>button { width: clamp(80px, 9vw, 110px) !important; height: clamp(80px, 9vw, 110px) !important; }
+    .mic-wrap div.stButton {
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+        width: 100% !important;
+    }
+    .mic-wrap .stButton>button {
+        margin: 0 auto !important;
+        display: flex !important;
+    }
     </style>
     """,
     unsafe_allow_html=True
