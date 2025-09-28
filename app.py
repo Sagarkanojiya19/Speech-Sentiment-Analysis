@@ -380,21 +380,6 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# If GloVe is missing, provide a quick uploader so users can load it at runtime
-# if not embeddings_index:
-#     with st.expander("Load GloVe embeddings (optional)"):
-#         f = st.file_uploader("Upload glove.6B.100d.txt", type=["txt"]) 
-#         if f is not None:
-#             try:
-#                 content = f.getvalue().decode('utf-8')
-#                 tmp_path = os.path.join(tempfile.gettempdir(), "glove_runtime_100d.txt")
-#                 with open(tmp_path, 'w', encoding='utf-8') as tfp:
-#                     tfp.write(content)
-#                 st.session_state['embeddings_index'] = load_glove_embeddings(tmp_path)
-#                 st.success("GloVe loaded for this session.")
-#             except Exception as e:
-#                 st.error(f"Failed to load embeddings: {e}")
-
 st.markdown(
     """
     <div class="card hero-card">
