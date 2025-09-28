@@ -1,9 +1,5 @@
-<<<<<<< HEAD
-# Speech Sentiment Analysis App
-=======
-
 # 🎤 Speech Sentiment Analysis
->>>>>>> 0d6ee6dc6f533cb44ce1ea23355fc7c1966322ce
+
 
 A modern React/Next.js frontend with Python TensorFlow backend for real-time speech sentiment analysis.
 
@@ -17,9 +13,9 @@ A modern React/Next.js frontend with Python TensorFlow backend for real-time spe
 
 ## Setup Instructions
 
-### 1. Frontend (React/Next.js)
+### 1. Frontend 
 
-The frontend is already set up and ready to run in v0. It will automatically start when you preview the project.
+The frontend is already set up and ready to run. It will automatically start when you preview the project.
 
 ### 2. Backend (Python API)
 
@@ -31,42 +27,6 @@ You need to run the Python API backend separately to get real sentiment predicti
    - `Model.h5` - Your trained TensorFlow model
    - `glove.6B.100d.txt` - GloVe embeddings file
 
-<<<<<<< HEAD
-2. **Python Environment**: Install Python 3.8+ and pip
-
-#### Installation
-
-1. Navigate to the `api/` directory:
-   \`\`\`bash
-   cd api/
-   \`\`\`
-
-2. Install Python dependencies:
-   \`\`\`bash
-   pip install -r requirements.txt
-   \`\`\`
-
-3. Make sure your model files are in the `api/` directory:
-   \`\`\`
-   api/
-   ├── sentiment_api.py
-   ├── requirements.txt
-   ├── Model.h5              # Your trained model
-   └── glove.6B.100d.txt     # GloVe embeddings
-   \`\`\`
-
-4. Run the Python API server:
-   \`\`\`bash
-   python sentiment_api.py
-   \`\`\`
-
-   You should see:
-   \`\`\`
-   ✅ Model and embeddings loaded successfully!
-   🚀 Starting Flask API server...
-   * Running on http://0.0.0.0:5000
-   \`\`\`
-
 ### 3. Using the App
 
 1. **Start the Python API** (as described above)
@@ -74,25 +34,6 @@ You need to run the Python API backend separately to get real sentiment predicti
 3. **Click the microphone button** to start recording
 4. **Speak clearly** for up to 5 seconds
 5. **View results** - transcription and real sentiment analysis
-
-## API Endpoints
-
-- `GET /health` - Check if the API and model are loaded
-- `POST /predict` - Analyze sentiment for given text
-
-Example API usage:
-\`\`\`bash
-curl -X POST http://localhost:5000/predict \
-  -H "Content-Type: application/json" \
-  -d '{"text": "I love this amazing product!"}'
-\`\`\`
-
-## Troubleshooting
-
-### API Connection Issues
-- Make sure the Python API is running on port 5000
-- Check that both `Model.h5` and `glove.6B.100d.txt` are in the `api/` directory
-- Verify no firewall is blocking port 5000
 
 ### Model Loading Issues
 - Ensure `Model.h5` is the exact model file from your training
@@ -104,13 +45,6 @@ curl -X POST http://localhost:5000/predict \
 - Use Chrome/Edge for best Web Speech API support
 - Check browser console for JavaScript errors
 
-## Architecture
-
-- **Frontend**: Next.js/React with TypeScript, Tailwind CSS, shadcn/ui
-- **Backend**: Flask API with TensorFlow, scikit-learn, numpy
-- **ML Model**: Your trained TensorFlow model with GloVe embeddings
-- **Communication**: REST API calls between frontend and backend
-=======
 ### Using the Interface
 
 1. **Text Analysis Tab**:
@@ -123,11 +57,3 @@ curl -X POST http://localhost:5000/predict \
    - Click "🎙️ Start Recording"
    - Speak clearly into your microphone
    - View sentiment analysis of transcribed speech
-
-## Acknowledgments
-
-- Stanford NLP Group for GloVe embeddings
-- Google for Speech-to-Text API
-- Gradio team for the amazing interface framework
-- Twitter for the sentiment dataset
->>>>>>> 0d6ee6dc6f533cb44ce1ea23355fc7c1966322ce
