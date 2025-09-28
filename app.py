@@ -420,11 +420,10 @@ st.markdown(
 # st.markdown("<p class='centered muted'>Click to start recording…</p>", unsafe_allow_html=True)
 # st.markdown("</div>", unsafe_allow_html=True)
 # Use columns for reliable button centering (works in both local and deployment)
-# col1, col2, col3 = st.columns([1.0, 1, 2.0])
+col1, col2, col3 = st.columns([1.0, 1.0, 1.0])
 
-# with col2:
-st.markdown("<div class='centered muted'>", unsafe_allow_html=True)
-mic_clicked = st.button("🎤", key="mic_record")
+with col2:
+    mic_clicked = st.button("🎤", key="mic_record")
 
 st.markdown("<p class='centered muted'>Click to start recording…</p>", unsafe_allow_html=True)
 
